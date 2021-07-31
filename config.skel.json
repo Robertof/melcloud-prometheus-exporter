@@ -1,0 +1,14 @@
+{
+    "ListenAddress": "localhost:9102",
+    "MELCloudConfig": {
+        "Mail": "testing@example.com",
+        "Password": "hello-world"
+    },
+    "Devices": [
+        {
+            "Type": "ecodan",
+            "Id": "1234",
+            "BuildingId": "5678"
+        }
+    ]
+}
