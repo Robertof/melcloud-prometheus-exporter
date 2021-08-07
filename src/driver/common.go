@@ -2,8 +2,11 @@ package driver
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -52,4 +55,9 @@ func (t *MitsubishiTime) UnmarshalJSON(b []byte) error {
 type Update struct {
     // Suggested timestamp representing when the next communication should occur.
     NextCommunication time.Time
+}
+
+type StatsManager interface {
+    ParseAndUpdateStats(io.ReadCloser) (*Update, error)
+    RegisterMetrics(prometheus.Registerer)
 }

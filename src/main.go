@@ -18,7 +18,7 @@ import (
 
 var (
     reg = prometheus.NewRegistry()
-    ecodanStatsManager = ecodan.NewDefaultStatsManager()
+    statsManagers = make(map[string]driver.StatsManager)
 )
 
 func main() {
@@ -41,19 +41,43 @@ func main() {
     log.Debug().Str("path", configPath).Msg("Parsing configuration")
 
     // Parse the configuration.
-    config, err := config.Parse(configPath)
+    cfg, err := config.Parse(configPath)
     if err != nil {
         log.Error().Err(err).Msg("Unable to parse config")
     }
 
-    requestor, err := melcloud.Authenticate(config.MELCloudConfig.Mail, config.MELCloudConfig.Password)
+    requestor, err := melcloud.Authenticate(cfg.MELCloudConfig.Mail, cfg.MELCloudConfig.Password)
     if err != nil {
         log.Fatal().Err(err).Msg("Unable to authenticate with MELCloud")
     }
 
+    log.Info().Msg("Bootstrapping statistics managers...")
+
+    melcloudRegisterer := prometheus.WrapRegistererWithPrefix("melcloud_", reg)
+
+    for _, descriptor := range cfg.Devices {
+        if _, ok := statsManagers[descriptor.Label]; ok {
+            log.Panic().Str("Label", descriptor.Label).Msg("Duplicated device labels are not permitted!")
+        }
+
+        reg := prometheus.WrapRegistererWith(prometheus.Labels{
+            "device": descriptor.Label,
+        }, melcloudRegisterer)
+
+        switch descriptor.Type {
+        case config.DeviceTypeEcodan:
+            manager := ecodan.NewDefaultStatsManager()
+            statsManagers[descriptor.Label] = manager
+            manager.RegisterMetrics(reg)
+            break
+        default:
+            log.Panic().Str("DeviceType", string(descriptor.Type)).Msg("Unknown device type")
+        }
+    }
+
     initialFetchCh := make(chan bool)
 
-    go fetchStats(requestor, config.Devices, initialFetchCh)
+    go fetchStats(requestor, cfg.Devices, initialFetchCh)
 
     log.Info().Msg("Waiting for initial statistics fetch to succeed...")
 
@@ -62,14 +86,11 @@ func main() {
     }
 
     log.Info().
-        Str("ListenAddress", config.ListenAddress).
-        Msg("Initial fetch completed successfully, registering metrics and starting Prometheus server")
-
-    melcloudRegisterer := prometheus.WrapRegistererWithPrefix("melcloud_", reg)
-    ecodan.RegisterCollector(ecodanStatsManager, melcloudRegisterer)
+        Str("ListenAddress", cfg.ListenAddress).
+        Msg("Initial fetch completed successfully, starting Prometheus server")
 
     http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-    http.ListenAndServe(config.ListenAddress, nil)
+    http.ListenAndServe(cfg.ListenAddress, nil)
 }
 
 func fetchStats(
@@ -83,7 +104,7 @@ func fetchStats(
     for {
         var err error
 
-        deviceLoop: for _, descriptor := range devices {
+        for _, descriptor := range devices {
             log.Debug().Str("Label", descriptor.Label).Msg("Fetching statistics for device")
 
             reader, err := requestor.GetDeviceInformation(descriptor.Id, descriptor.BuildingId)
@@ -92,7 +113,7 @@ func fetchStats(
                 log.Error().
                     Err(err).
                     Str("Label", descriptor.Label).
-                    Str("DeviceType", descriptor.Type).
+                    Str("DeviceType", string(descriptor.Type)).
                     Str("DeviceID", descriptor.Id).
                     Str("BuildingID", descriptor.BuildingId).
                     Msg("Failed to fetch statistics")
@@ -104,29 +125,21 @@ func fetchStats(
 
             defer reader.Close()
 
-            var update *driver.Update
+            statsManager := statsManagers[descriptor.Label]
+            update, err := statsManager.ParseAndUpdateStats(reader)
 
-            switch descriptor.Type {
-            case config.DeviceTypeEcodan:
-                update, err = ecodanStatsManager.ParseAndUpdateStats(reader)
-
-                if err != nil {
-                    log.Error().
-                        Err(err).
-                        Str("Label", descriptor.Label).
-                        Str("DeviceType", descriptor.Type).
-                        Str("DeviceID", descriptor.Id).
-                        Str("BuildingID", descriptor.BuildingId).
-                        Msg("Failed to decode Ecodan model from statistics")
-                    if !didCompleteInitialFetch {
-                        break deviceLoop
-                    }
-                    continue deviceLoop
+            if err != nil {
+                log.Error().
+                    Err(err).
+                    Str("Label", descriptor.Label).
+                    Str("DeviceType", string(descriptor.Type)).
+                    Str("DeviceID", descriptor.Id).
+                    Str("BuildingID", descriptor.BuildingId).
+                    Msg("Failed to decode model from statistics")
+                if !didCompleteInitialFetch {
+                    break
                 }
-
-                break
-            default:
-                log.Panic().Str("DeviceType", descriptor.Type).Msg("Unknown device type")
+                continue
             }
 
             if update != nil {

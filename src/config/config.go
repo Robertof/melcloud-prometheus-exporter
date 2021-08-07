@@ -1,7 +1,9 @@
 package config
 
+type DeviceType string
+
 const (
-    DeviceTypeEcodan = "ecodan"
+    DeviceTypeEcodan DeviceType = "ecodan"
 )
 
 type Config struct {
@@ -15,5 +17,6 @@ type MELCloudConfig struct {
 }
 
 type MELCloudDeviceDescriptor struct {
-    Type, Label, Id, BuildingId string
+    Type DeviceType
+    Label, Id, BuildingId string
 }

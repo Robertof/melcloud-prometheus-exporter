@@ -6,26 +6,27 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"rbf.dev/melcloud_prometheus_exporter/driver"
 )
 
-type StatsManager struct {
+type statsManager struct {
 	mu sync.RWMutex
 	lastStats *EcodanStatistics
 }
 
-func NewDefaultStatsManager() *StatsManager {
-	return &StatsManager{}
+func NewDefaultStatsManager() driver.StatsManager {
+	return &statsManager{}
 }
 
-func (s *StatsManager) updateStats(stats *EcodanStatistics) {
+func (s *statsManager) updateStats(stats *EcodanStatistics) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.lastStats = stats
 }
 
-func (s *StatsManager) ParseAndUpdateStats(reader io.ReadCloser) (*driver.Update, error) {
+func (s *statsManager) ParseAndUpdateStats(reader io.ReadCloser) (*driver.Update, error) {
     var statistics EcodanStatistics
 
     if err := json.NewDecoder(reader).Decode(&statistics); err != nil {
@@ -39,7 +40,11 @@ func (s *StatsManager) ParseAndUpdateStats(reader io.ReadCloser) (*driver.Update
     }, nil
 }
 
-func (s *StatsManager) Stats() *EcodanStatistics {
+func (s *statsManager) RegisterMetrics(reg prometheus.Registerer) {
+	RegisterCollector(s, reg)
+}
+
+func (s *statsManager) Stats() *EcodanStatistics {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

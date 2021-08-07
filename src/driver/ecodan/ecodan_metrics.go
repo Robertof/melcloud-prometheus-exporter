@@ -80,11 +80,6 @@ type StatsProvider interface {
 	Stats() *EcodanStatistics
 }
 
-/*type Collector struct {
-	mu sync.RWMutex
-	lastReading *EcodanStatistics
-}*/
-
 type collector struct {
 	provider StatsProvider
 }
