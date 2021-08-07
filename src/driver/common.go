@@ -1,22 +1,35 @@
 package driver
 
 import (
-    "strings"
-    "time"
+	"fmt"
+	"strings"
+	"time"
 )
 
 const (
-    OperationModeDryFloor OperationMode = "dry-floor"
-    OperationModeHeating = "heating"
-    OperationModeAntiFreeze = "antifreeze"
-    OperationModeCooling = "cooling"
-    OperationModeIdle = "idle"
-    OperationModeLegionella = "legionella"
-    OperationModeHoliday = "holiday"
-    OperationModeProhibited = "prohibited"
+    OperationModeDryFloor OperationMode = iota
+    OperationModeHeating
+    OperationModeAntiFreeze
+    OperationModeCooling
+    OperationModeIdle
+    OperationModeLegionella
+    OperationModeHoliday
+    OperationModeProhibited
 )
 
-type OperationMode string
+type OperationMode uint
+
+//go:generate enumer -type=OperationMode
+
+func OperationModeHelpString() string {
+    out := make([]string, len(OperationModeValues()))
+
+    for index, op := range OperationModeValues() {
+        out[index] = fmt.Sprintf("%v (%v)", int(op), op.String()[len("OperationMode"):])
+    }
+
+    return "Available values: " + strings.Join(out, ", ")
+}
 
 type MitsubishiTime time.Time
 
@@ -34,4 +47,9 @@ func (t *MitsubishiTime) UnmarshalJSON(b []byte) error {
     *t = MitsubishiTime(date)
 
     return nil
+}
+
+type Update struct {
+    // Suggested timestamp representing when the next communication should occur.
+    NextCommunication time.Time
 }

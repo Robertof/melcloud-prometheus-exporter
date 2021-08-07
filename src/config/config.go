@@ -15,5 +15,5 @@ type MELCloudConfig struct {
 }
 
 type MELCloudDeviceDescriptor struct {
-    Type, Id, BuildingId string
+    Type, Label, Id, BuildingId string
 }

@@ -7,6 +7,7 @@
     "Devices": [
         {
             "Type": "ecodan",
+            "Label": "ecodan",
             "Id": "1234",
             "BuildingId": "5678"
         }

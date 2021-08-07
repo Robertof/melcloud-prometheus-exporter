@@ -1,16 +1,16 @@
 package melcloud
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "io"
-    "net/http"
-    "net/http/httputil"
-    "net/url"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 
-    "github.com/rs/zerolog"
-    "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -67,8 +67,8 @@ func Authenticate(Email, Password string) (*MelcloudRequestor, error) {
     log.Info().Msg("Successfully authenticated with MELCloud")
 
     return &MelcloudRequestor{
-        client:     client,
-        contextKey: response.LoginData.ContextKey,
+        client:         client,
+        contextKey:     response.LoginData.ContextKey,
         reauthenticate: func() (string, error) {
             result, err := Authenticate(Email, Password)
             if err != nil {
