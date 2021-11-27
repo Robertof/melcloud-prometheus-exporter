@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+    // _ "net/http/pprof"
 	"os"
 	"time"
 
@@ -126,10 +127,9 @@ func fetchStats(
                 continue
             }
 
-            defer reader.Close()
-
             statsManager := statsManagers[descriptor.Label]
             update, err := statsManager.ParseAndUpdateStats(reader)
+            reader.Close()
 
             if err != nil {
                 log.Error().
