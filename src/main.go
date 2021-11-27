@@ -117,6 +117,9 @@ func fetchStats(
                     Str("DeviceID", descriptor.Id).
                     Str("BuildingID", descriptor.BuildingId).
                     Msg("Failed to fetch statistics")
+                if reader != nil {
+                    reader.Close()
+                }
                 if !didCompleteInitialFetch {
                     break
                 }
@@ -174,7 +177,7 @@ func fetchStats(
             }
         }
 
-        nextCommunicationDates = nextCommunicationDates[:0]
+        nextCommunicationDates = make([]time.Time, 0, len(devices))
 
         maxDate = maxDate.Add(5 * time.Second) // 5 seconds buffer
 
