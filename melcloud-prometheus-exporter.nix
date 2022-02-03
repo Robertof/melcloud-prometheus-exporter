@@ -20,6 +20,8 @@ in {
         User = "melcloud-prometheus-exporter";
         ExecStart = "${melcloudPrometheusExporter}/bin/melcloud-prometheus-exporter '${configPath}'";
         DynamicUser = true;
+        Restart = "on-failure";
+        RestartSec = 60;
       };
     };
   };
