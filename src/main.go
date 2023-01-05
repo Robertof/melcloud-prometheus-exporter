@@ -2,19 +2,18 @@ package main
 
 import (
 	"net/http"
-    // _ "net/http/pprof"
 	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/robertof/go-melcloud"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"rbf.dev/melcloud_prometheus_exporter/config"
 	"rbf.dev/melcloud_prometheus_exporter/driver"
 	"rbf.dev/melcloud_prometheus_exporter/driver/ecodan"
-	"rbf.dev/melcloud_prometheus_exporter/melcloud"
 )
 
 var (
