@@ -1,4 +1,4 @@
-{ stdenv }:
+{ stdenv, lib }:
 
 stdenv.mkDerivation rec {
   name = "melcloud-prometheus-exporter-${version}";
@@ -17,7 +17,7 @@ stdenv.mkDerivation rec {
     install -m755 -D melcloud-prometheus-exporter.bin $out/bin/melcloud-prometheus-exporter
   '';
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "Prometheus exporter for MELCloud connected devices.";
     platforms = platforms.linux;
   };
