@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog/log"
 	"rbf.dev/melcloud_prometheus_exporter/driver"
 )
 
@@ -39,6 +40,11 @@ func (s *statsManager) ParseAndUpdateStats(reader io.ReadCloser) (*driver.Update
     if err := json.NewDecoder(tee).Decode(&statistics); err != nil {
         return nil, fmt.Errorf("while parsing '%.100v': %w", buf.String(), err)
     }
+
+    log.Trace().
+        Interface("Stats", statistics).
+        Str("Raw", buf.String()).
+        Msg("ecodan: successfully parsed statistics")
 
     s.updateStats(&statistics)
 
