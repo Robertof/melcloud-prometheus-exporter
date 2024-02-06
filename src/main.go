@@ -193,7 +193,20 @@ func fetchStats(
 
         nextCommunicationDates = make([]time.Time, 0, len(devices))
 
-        maxDate = maxDate.Add(5 * time.Second) // 5 seconds buffer
+        if maxDate.IsZero() || time.Until(maxDate) < 1 * time.Minute {
+            // enforce a minimum wait of 1m10s in case the date is in the past (likely due
+            // to some sort of time skew).
+            maxDate = time.Now().Add(1 * time.Minute + 10 * time.Second)
+            log.Debug().
+                Stringer("NextTick", maxDate).
+                Msg("Ignoring suggested next tick as it's zero or too small - using 1m10s")
+        } else if time.Until(maxDate) > 5 * time.Minute {
+            // do not bother waiting more than 5 minutes for an update.
+            maxDate = time.Now().Add(5 * time.Minute)
+            log.Debug().
+                Stringer("NextTick", maxDate).
+                Msg("Ignoring suggested next tick as it's over 5 minutes - using 5m")
+        }
 
         log.Debug().Time("NextTick", maxDate).Msg("Waiting until next tick to perform next statistics fetch")
 
