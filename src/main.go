@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"io"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -43,7 +46,7 @@ func main() {
     // Parse the configuration.
     cfg, err := config.Parse(configPath)
     if err != nil {
-        log.Error().Err(err).Msg("Unable to parse config")
+        log.Fatal().Err(err).Msg("Unable to parse config")
     }
 
     requestor, err := melcloud.Authenticate(cfg.MELCloudConfig.Mail, cfg.MELCloudConfig.Password)
@@ -99,6 +102,7 @@ func fetchStats(
     initialFetchCh chan bool,
 ) {
     didCompleteInitialFetch := false
+    backoffFactor := 1
     nextCommunicationDates := make([]time.Time, 0, len(devices))
 
     for {
@@ -107,7 +111,8 @@ func fetchStats(
         for _, descriptor := range devices {
             log.Debug().Str("Label", descriptor.Label).Msg("Fetching statistics for device")
 
-            reader, err := requestor.GetDeviceInformation(descriptor.Id, descriptor.BuildingId)
+            var reader io.ReadCloser
+            reader, err = requestor.GetDeviceInformation(descriptor.Id, descriptor.BuildingId)
 
             if err != nil {
                 log.Error().
@@ -120,14 +125,16 @@ func fetchStats(
                 if reader != nil {
                     reader.Close()
                 }
-                if !didCompleteInitialFetch {
+                // if we are ratelimited, do not attempt to issue requests for other devices.
+                if !didCompleteInitialFetch || errors.Is(err, melcloud.ErrTooManyRequests) {
                     break
                 }
                 continue
             }
 
             statsManager := statsManagers[descriptor.Label]
-            update, err := statsManager.ParseAndUpdateStats(reader)
+            var update *driver.Update
+            update, err = statsManager.ParseAndUpdateStats(reader)
             reader.Close()
 
             if err != nil {
@@ -163,11 +170,19 @@ func fetchStats(
 
         // Determine the farthest communication date.
         if len(nextCommunicationDates) == 0 {
-            // Try again in one minute if no attempt succeeded.
-            <- time.After(time.Minute)
+            // Try again based on the backoff factor if no attempt succeeded.
+            wait := time.Minute * time.Duration(math.Pow(2, float64(backoffFactor)))
+            if backoffFactor < 4 {
+                // limit to 16 mins (2**4) backoff.
+                backoffFactor += 1
+            }
+            log.Debug().Dur("Backoff", wait).Msg("No attempt succeeded - backing off")
+            <- time.After(wait)
             continue
         }
 
+        // reset backoff factor after any fetch succeeded.
+        backoffFactor = 1
         var maxDate time.Time
 
         for _, date := range nextCommunicationDates {
